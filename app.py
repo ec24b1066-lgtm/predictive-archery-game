@@ -46,14 +46,12 @@ if st.sidebar.button("Reset Targets 🔄", use_container_width=True):
     st.rerun()
 
 # --- ANIMATION FRAMEWORK (HTML5 Canvas) ---
-# Map score to visual landing height on target (higher score = closer to center)
 y_offset = 0
 if st.session_state.last_shot:
-    # 0 score is bottom/top, 100 score is perfect center (y=100)
     score_achieved = st.session_state.last_shot['Score']
     y_offset = int((100 - score_achieved) * 0.8) * (1 if np.random.rand() > 0.5 else -1)
 
-# Pure Frontend Animation Code passed directly to the browser
+# Frontend Animation Code
 canvas_html = f"""
 <div style="text-align:center;">
     <canvas id="archeryCanvas" width="600" height="200" style="background:#1e1e24; border-radius:10px; border:2px solid #333;"></canvas>
@@ -70,7 +68,7 @@ canvas_html = f"""
     function drawScene() {{
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        # 1. Draw Target Rings
+        // 1. Draw Target Rings
         ctx.lineWidth = 8;
         ctx.strokeStyle = 'white';
         ctx.beginPath(); ctx.arc(550, 100, 60, 0, 2*Math.PI); ctx.stroke();
@@ -81,22 +79,22 @@ canvas_html = f"""
         ctx.fillStyle = 'yellow';
         ctx.beginPath(); ctx.arc(550, 100, 8, 0, 2*Math.PI); ctx.fill();
         
-        # 2. Draw Bow
+        // 2. Draw Bow
         ctx.lineWidth = 4;
         ctx.strokeStyle = '#e0a96d';
         ctx.beginPath();
         ctx.arc(30, 100, 40, -Math.PI/2, Math.PI/2);
         ctx.stroke();
-        # Bowstring
+        
+        // Bowstring
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(30, 60); ctx.lineTo(30, 140); ctx.stroke();
         
-        # 3. Draw Arrow Animation
+        // 3. Draw Arrow Animation
         if (isAnimated) {{
             if (arrowX < 540) {{
                 arrowX += 8;
-                # Curve path slightly based on target landing point
                 arrowY += (targetY - 100) / (490 / 8);
             }}
             
@@ -106,7 +104,8 @@ canvas_html = f"""
             ctx.moveTo(arrowX, arrowY);
             ctx.lineTo(arrowX - 30, arrowY);
             ctx.stroke();
-            # Arrow Tip
+            
+            // Arrow Tip
             ctx.fillStyle = 'red';
             ctx.beginPath(); ctx.arc(arrowX, arrowY, 4, 0, 2*Math.PI); ctx.fill();
         }}
@@ -117,7 +116,7 @@ canvas_html = f"""
 </script>
 """
 
-# Render the visual area right under the main title
+# Render the visual canvas area
 components.html(canvas_html, height=220)
 
 # --- MACHINE LEARNING MODEL SECTION ---
@@ -136,13 +135,15 @@ if num_shots >= 3:
     y = df['Score']
     model = LinearRegression().fit(X, y)
     
-    predicted_score = float(np.clip(model.predict([[shot_power]]), 0, 100))
+    # Safe array extraction fix applied here
+    raw_prediction = model.predict([[shot_power]])[0]
+    predicted_score = float(np.clip(raw_prediction, 0, 100))
     
     st.subheader("🤖 Live AI Prediction Engine")
     st.info(f"If you shoot right now at **{shot_power} Power**, the model predicts your score will be: **{predicted_score:.1f}**")
     
     st.markdown("### 🎓 Data Science Analytics")
-    st.markdown(f"**Trained Model Equation:** `Score = ({model.coef_:.2f} * Power) + {model.intercept_:.2f}`")
+    st.markdown(f"**Trained Model Equation:** `Score = ({model.coef_[0]:.2f} * Power) + {model.intercept_:.2f}`")
     
     mae = mean_absolute_error(y, model.predict(X))
     st.metric(label="📉 Model Error (Mean Absolute Error)", value=f"{mae:.2f} points")
